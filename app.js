@@ -3,9 +3,20 @@ const app = express();
 const morgan = require('morgan');
 const cors = require("cors");
 const cookie = require('cookie-parser')
+const cloudinary = require("cloudinary").v2;
 
 const dotenv = require('dotenv');
 dotenv.config({ path: './config/config.env' });
+
+
+
+//Cloudinary Config
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+});
 
 const ORIGINS = process.env.ORIGINS ? process.env.ORIGINS.split(',') : []
 console.log("All Origins", ORIGINS)
