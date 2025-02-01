@@ -1,0 +1,12 @@
+# Dependency directories
+node_modules/
+
+# Environment variables
+config/config.env
+
+.env
+
+.serverless
+
+./test.js
+./test.html
