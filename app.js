@@ -55,6 +55,7 @@ const orderRoutes = require('./routers/orderRoute');
 const paymentRoutes = require('./routers/paymentRoute');
 const couponRoutes = require('./routers/couponRoute');
 const adminRoutes = require('./routers/adminRoute');
+const websiteRoutes = require('./routers/websiteRoute');
 const { processPaymentStatusFromPPay } = require("./utils/helperFunctions");
 app.use('/api/v1', userRoutes);
 app.use("/api/v1", productRoutes);
@@ -62,6 +63,7 @@ app.use("/api/v1", paymentRoutes);
 app.use("/api/v1", orderRoutes);
 app.use("/api/v1", couponRoutes);
 app.use("/api/v1", adminRoutes);
+app.use("/api/v1", websiteRoutes);
 
 
 //Listening on PORT 
