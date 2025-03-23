@@ -54,15 +54,6 @@ exports.sendEmailFromWebsite = async (req, res) => {
         }
 
 
-        // const emailContent = `
-        // <h2>New Contact Form Submission From ${website} Website</h2>
-        // <p><strong>Name:</strong> ${name}</p>
-        // <p><strong>Email:</strong> ${email}</p>
-        // <p><strong>Subject:</strong> ${subject}</p>
-        // <p><strong>Phone:</strong> ${phone}</p>
-        // <p><strong>Message:</strong></p>
-        // <p>${message}</p>
-        // `;
 
         const emailContent = generateEmailTemplate(formData, website, subject);
 
