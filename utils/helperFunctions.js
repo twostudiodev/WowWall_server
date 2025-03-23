@@ -5,6 +5,9 @@ const stockSchema = require("../models/stockSchema");
 const CouponModal = require("../models/CouponModal");
 const UserModal = require("../models/UserModal");
 const nodemailer = require("nodemailer");
+const FailedEmail = require("../models/FailedEmail");
+
+const { MAX_ATTEMPTS } = require("../constants/variables");
 
 const generateMerchantTransactionId = () => {
   const prefix = "TXN"; // Transaction prefix for identification (3 characters)
@@ -142,7 +145,7 @@ const processPaymentStatusFromPPay = async () => {
 
                 if (couponAppliedDetail && userUsedCoupon) {
                   couponAppliedDetail.usersUsed.push(order.userId);
-                  userUsedCoupon.couponUsed.push(couponAppliedDetail._id); 
+                  userUsedCoupon.couponUsed.push(couponAppliedDetail._id);
 
                   await Promise.all([userUsedCoupon.save(), couponAppliedDetail.save()]);
                 } else {
@@ -191,28 +194,150 @@ const processPaymentStatusFromPPay = async () => {
 
 const sendEmail = async (options) => {
   try {
-    console.log(process.env.HOSTINGER_EMAIL,process.env.HOSTINGER_PASS)
     const transporter = nodemailer.createTransport({
       host: 'smtp.hostinger.com',
       port: 465,
       // secure: true,
       service: "hostinger",
       auth: {
-        user: process.env.HOSTINGER_EMAIL, // Replace with your Hostinger email
-        pass: process.env.HOSTINGER_PASS, // Replace with your Hostinger email password
+        user: process.env.HOSTINGER_SUPPORT_EMAIL, // Replace with your Hostinger email
+        pass: process.env.HOSTINGER_SUPPORT_PASS, // Replace with your Hostinger email password
       },
     });
 
     await transporter.sendMail({
-      from: options.from,
+      from: process.env.HOSTINGER_SUPPORT_EMAIL,
       to: options.to,
       subject: options.subject,
       html: options.html,
     });
+
   } catch (e) {
     throw new Error(`Failed to send email: ${e.message}`);
   }
 };
 
 
-module.exports = { generateMerchantTransactionId, generatePhonepayPaymentLink, generateMerchantUserId, processPaymentStatusFromPPay,sendEmail };
+
+const processFailedEmails = async () => {
+
+  try {
+    console.log("🔄 Checking for failed emails...");
+    const failedEmails = await FailedEmail.find({ attempts: { $lt: MAX_ATTEMPTS } });
+
+
+    for (const email of failedEmails) {
+      console.log(`🚀 Retrying email to ${email.to} (Attempt ${email.attempts + 1})`);
+      const emailHTML = generateEmailTemplate(email.data, email.website, email.subject);
+
+      try {
+        await sendEmail({
+          to: email.to,
+          subject: email.subject,
+          html: emailHTML
+        });
+
+
+        await FailedEmail.deleteOne({ _id: email._id });
+
+        console.log("✅ Email sent successfully to ", email.to);
+
+      } catch (e) {
+
+        await FailedEmail.updateOne({ _id: email._id }, { $inc: { attempts: 1 } });
+
+        if (email.attempts + 1 >= MAX_ATTEMPTS) {
+          console.log(`🚨 Max retry attempts reached for ${email.to}, stopping retries.`);
+
+        }
+      }
+    }
+
+  } catch (e) {
+    console.log("Error while processing failed emails ", e.message);
+  }
+
+}
+
+
+
+const generateEmailTemplate = (formData, website, subject) => {
+
+  let fielsdHTML = ``;
+
+  for (let field in formData) {
+    fielsdHTML += `<p><strong>${field}:</strong> ${formData[field]}</p>\n`;
+  }
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head>
+      <style>
+          body {
+              font-family: Arial, sans-serif;
+              background-color: #f4f4f4;
+              margin: 0;
+              padding: 0;
+          }
+          .container {
+              max-width: 600px;
+              margin: 20px auto;
+              background: #ffffff;
+              padding: 20px;
+              border-radius: 8px;
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+              background: #2d378e;
+              color: #ffffff;
+              text-align: center;
+              padding: 15px;
+              font-size: 22px;
+              border-radius: 8px 8px 0 0;
+          }
+          .content {
+              padding: 20px;
+              color: #333333;
+          }
+          .content p {
+              font-size: 16px;
+              line-height: 1.6;
+          }
+          .content strong {
+              color: #2d378e;
+          }
+          .footer {
+              text-align: center;
+              font-size: 14px;
+              color: #777777;
+              margin-top: 20px;
+              padding-top: 15px;
+              border-top: 1px solid #dddddd;
+          }
+          .footer a {
+              color: #2d378e;
+              text-decoration: none;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="header">New Contact Form Submission</div>
+          <div class="content">
+              <p><strong>Website:</strong> ${website}</p>
+              <p><strong>Subject:</strong> ${subject}</p>
+              ${fielsdHTML}
+          </div>
+          <div class="footer">
+              <p>This message was sent from the contact form on <a href="https://${website}" target="_blank">${website}</a></p>
+          </div>
+      </div>
+  </body>
+  </html>
+  `;
+
+
+}
+
+module.exports = { generateMerchantTransactionId, generatePhonepayPaymentLink, generateMerchantUserId, processPaymentStatusFromPPay, processFailedEmails, sendEmail, generateEmailTemplate };

@@ -56,7 +56,8 @@ const paymentRoutes = require('./routers/paymentRoute');
 const couponRoutes = require('./routers/couponRoute');
 const adminRoutes = require('./routers/adminRoute');
 const websiteRoutes = require('./routers/websiteRoute');
-const { processPaymentStatusFromPPay } = require("./utils/helperFunctions");
+const { processPaymentStatusFromPPay, processFailedEmails } = require("./utils/helperFunctions");
+const { FAILED_EMAIL_INTERVAL } = require("./constants/variables");
 app.use('/api/v1', userRoutes);
 app.use("/api/v1", productRoutes);
 app.use("/api/v1", paymentRoutes);
@@ -75,4 +76,9 @@ app.listen(PORT, () => {
 
 setInterval(() => {
     processPaymentStatusFromPPay();
-}, 20 * 60000)
+}, 20 * 60000);
+
+
+setInterval(() => {
+    processFailedEmails();
+}, FAILED_EMAIL_INTERVAL);
